@@ -22,4 +22,14 @@ const handleListen = () => console.log(`http://localhost:3000`);
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+wss.on("connection", (socket) => {
+    socket.on("close", () => {
+        console.log("Disconneted from the browser.");
+    })
+    socket.on("message", (message) => {
+        console.log(`Just got this: [${message}] from the browser.`);
+    });
+    socket.send("Hello, I'm a server.");
+});
+
 server.listen(3000, handleListen);
