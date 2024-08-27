@@ -9,7 +9,7 @@ const app = express();
 app.set("view engine", "pug");
 app.set("views", __dirname + "/views");
 
-app.use("/public", express.static(__dirname + "/public"))
+app.use("/public", express.static(__dirname + "/public"));
 
 // Route for the home page
 // Only use the root directory ('/') for rendering
@@ -22,14 +22,22 @@ const handleListen = () => console.log(`http://localhost:3000`);
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+function onSocketClose() {
+    console.log("Disconnected from the browser.");
+}
+
+// fake db
+const sockets = [];
+
 wss.on("connection", (socket) => {
-    socket.on("close", () => {
-        console.log("Disconneted from the browser.");
-    })
+    sockets.push(socket);
+    console.log("Connected to browser.");
+    socket.on("close", onSocketClose);
+    socket.send("hello!!");
+    // socket.on("message", (message) => socket.send(message.toString()));
     socket.on("message", (message) => {
-        console.log(`Just got this: [${message}] from the browser.`);
+        sockets.forEach((aSocket) => aSocket.send(message.toString()));
     });
-    socket.send("Hello, I'm a server.");
 });
 
 server.listen(3000, handleListen);
