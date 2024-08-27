@@ -6,6 +6,7 @@ const nicknameForm = document.querySelector("#nickname");
 const socket = new WebSocket(`ws://${window.location.host}`);
 
 // javascript object -> string
+// before using framework
 function makeMessage(type, payload) {
     const message = { type, payload };
     return JSON.stringify(message);

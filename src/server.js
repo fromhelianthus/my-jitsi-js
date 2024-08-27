@@ -41,6 +41,7 @@ wss.on("connection", (socket) => {
     socket.on("message", (msg) => {
         const message = JSON.parse(msg);
 
+        // before using framework
         switch (message.type) {
             case "new_message":
                 sockets.forEach((aSocket) =>
