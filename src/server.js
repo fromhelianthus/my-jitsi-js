@@ -1,21 +1,21 @@
 // backend
+// server.js
 
 import express from "express";
 import http from "http";
-import SocketIO from "socket.io";
+import { Server } from "socket.io";
 
 const app = express();
 
 app.set("view engine", "pug");
 app.set("views", __dirname + "/views");
-
 app.use("/public", express.static(__dirname + "/public"));
 
 app.get("/", (_, res) => res.render("home"));
 app.get("/*", (_, res) => res.redirect("/"));
 
 const httpServer = http.createServer(app);
-const wsServer = SocketIO(httpServer);
+const wsServer = new Server(httpServer);
 
 function publicRooms() {
     const {
@@ -25,13 +25,11 @@ function publicRooms() {
     } = wsServer;
 
     const publicRooms = [];
-
     rooms.forEach((_, key) => {
         if (sids.get(key) === undefined) {
             publicRooms.push(key);
         }
     });
-
     return publicRooms;
 }
 
@@ -40,7 +38,7 @@ function countRoom(roomName) {
 }
 
 wsServer.on("connection", (socket) => {
-    socket["nickname"] = "Anon";
+    socket["nickname"] = "Anon"; // default
 
     socket.onAny((event) => {
         console.log(`Socket Event: ${event}`);
@@ -49,7 +47,9 @@ wsServer.on("connection", (socket) => {
     socket.on("enter_room", (roomName, done) => {
         socket.join(roomName);
         done();
-        socket.to(roomName).emit("welcome", socket.nickname);
+        socket
+            .to(roomName)
+            .emit("welcome", socket.nickname, countRoom(roomName));
         wsServer.sockets.emit("room_change", publicRooms());
     });
 
@@ -68,8 +68,13 @@ wsServer.on("connection", (socket) => {
         done();
     });
 
-    socket.on("nickname", (nickname) => (socket["nickname"] = nickname));
+    socket.on("nickname", (nickname, done) => {
+        socket["nickname"] = nickname;
+        console.log(`Nickname set to ${nickname}`);
+        done();
+    });
 });
 
-const handleListen = () => console.log(`http://localhost:3000`);
+const handleListen = () =>
+    console.log(`Server listening on http://localhost:3000`);
 httpServer.listen(3000, handleListen);
