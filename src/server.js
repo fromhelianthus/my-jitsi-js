@@ -21,26 +21,22 @@ app.get("/*", (_, res) => res.redirect("/"));
 const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 
-wsServer.on("connection", socket => {
-    socket["nickname"] = "Anon";
+wsServer.on("connection", (socket) => {
     socket.onAny((event) => {
         console.log(`Socket Event: ${event}`);
     });
     socket.on("enter_room", (roomName, done) => {
         socket.join(roomName);
         done();
-        socket.to(roomName).emit("welcome", socket.nickname);
+        socket.to(roomName).emit("welcome");
     });
     socket.on("disconnecting", () => {
-        socket.rooms.forEach((room) =>
-            socket.to(room).emit("bye", socket.nickname)
-        );
+        socket.rooms.forEach((room) => socket.to(room).emit("bye"));
     });
     socket.on("new_message", (msg, room, done) => {
-        socket.to(room).emit("new_message", `${socket.nickname}: ${msg}`);
+        socket.to(room).emit("new_message", msg);
         done();
     });
-    socket.on("nickname", (nickname) => (socket["nickname"] = nickname));
 });
 
 const handleListen = () => console.log(`http://localhost:3000`);
