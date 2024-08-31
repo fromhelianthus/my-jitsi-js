@@ -5,6 +5,7 @@ doctype html
 html(lang="en")
     head
         meta(charset="UTF-8")
+        meta(http-equiv="X-UA-Compatible", content="IE=edge")
         meta(name="viewport", content="width=device-width, initial-scale=1.0")
         title My Zoom
         link(rel="stylesheet", href="https://unpkg.com/mvp.css")
@@ -12,20 +13,9 @@ html(lang="en")
         header
             h1 My Zoom
         main
-            div#welcome
-                form#room-form
-                    input(placeholder="Room name", required, type="text")
-                    button Enter Room
-                h4 Open Rooms:
-                ul
-            div#room
-                h3
-                ul
-                form#msg
-                    input(placeholder="Message", required, type="text")
-                    button Send
-            form#nickname-form
-                input(placeholder="Enter your nickname", required, type="text")
-                button Set Nickname
-        script(src="/socket.io/socket.io.js")        
-        script(src="/public/js/app.js")
+            div#myStream
+                video#myFace(autoplay,playsinline, muted, width="400", height="400")
+                button#mute Mute
+                button#camera Turn Camera Off
+        script(src="/socket.io/socket.io.js") 
+        script(src="/public/js/app.js") 
