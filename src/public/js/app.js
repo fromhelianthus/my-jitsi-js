@@ -23,6 +23,7 @@ async function getCameras() {
         const cameras = devices.filter(
             (device) => device.kind === "videoinput"
         );
+
         const currentCamera = myStream.getVideoTracks()[0];
 
         cameras.forEach((camera) => {
@@ -56,7 +57,9 @@ async function getMedia(deviceId) {
         myStream = await navigator.mediaDevices.getUserMedia(
             deviceId ? cameraConstraints : initialConstrains
         );
+
         myFace.srcObject = myStream;
+
         if (!deviceId) {
             await getCameras();
         }
@@ -95,11 +98,21 @@ function handleCameraClick() {
 
 async function handleCameraChange() {
     await getMedia(camerasSelect.value);
+
+    if (myPeerConnection) {
+        const videoTrack = myStream.getVideoTracks()[0];
+        const videoSender = myPeerConnection
+            .getSenders()
+            .find((sender) => sender.track.kind === "video");
+        videoSender.replaceTrack(videoTrack);
+    }
 }
 
 muteBtn.addEventListener("click", handleMuteClick);
 cameraBtn.addEventListener("click", handleCameraClick);
 camerasSelect.addEventListener("input", handleCameraChange);
+
+// Form
 
 const welcome = document.getElementById("welcome");
 const welcomeForm = welcome.querySelector("form");
@@ -121,6 +134,8 @@ async function handleWelcomeSubmit(event) {
 }
 
 welcomeForm.addEventListener("submit", handleWelcomeSubmit);
+
+// Socket
 
 socket.on("welcome", async () => {
     const offer = await myPeerConnection.createOffer();
@@ -149,8 +164,23 @@ socket.on("ice", (ice) => {
     myPeerConnection.addIceCandidate(ice);
 });
 
+// RTC
+
 function makeConnection() {
-    myPeerConnection = new RTCPeerConnection();
+    myPeerConnection = new RTCPeerConnection({
+        iceServers: [
+            {
+                urls: [
+                    "stun:stun.l.google.com:19302",
+                    "stun:stun1.l.google.com:19302",
+                    "stun:stun2.l.google.com:19302",
+                    "stun:stun3.l.google.com:19302",
+                    "stun:stun4.l.google.com:19302",
+                ],
+            },
+        ],
+    });
+
     myPeerConnection.addEventListener("icecandidate", handleIce);
     myPeerConnection.addEventListener("addstream", handleAddStream);
     myStream
