@@ -9,7 +9,12 @@ const cameraBtn = document.getElementById("camera");
 const camerasSelect = document.getElementById("cameras");
 const call = document.getElementById("call");
 
+const messageForm = document.getElementById("messageForm");
+const messages = document.getElementById("messages");
+const chat = document.getElementById("chat");
+
 call.hidden = true;
+chat.hidden = true;
 
 let myStream;
 let muted = false;
@@ -113,13 +118,14 @@ cameraBtn.addEventListener("click", handleCameraClick);
 camerasSelect.addEventListener("input", handleCameraChange);
 
 // Form
-
 const welcome = document.getElementById("welcome");
 const welcomeForm = welcome.querySelector("form");
 
 async function initCall() {
     welcome.hidden = true;
     call.hidden = false;
+    chat.hidden = false;
+
     await getMedia();
     makeConnection();
 }
@@ -135,33 +141,63 @@ async function handleWelcomeSubmit(event) {
 
 welcomeForm.addEventListener("submit", handleWelcomeSubmit);
 
-// Socket
+function sendMessage(message) {
+    const li = document.createElement("li");
+    li.innerText = message;
+    messages.appendChild(li);
+}
 
+function handleMessageSubmit(event) {
+    event.preventDefault();
+    const input = messageForm.querySelector("input");
+    const message = input.value;
+
+    // bug?
+    if (myDataChannel && myDataChannel.readyState === "open") {
+        myDataChannel.send(message);
+        sendMessage(`You: ${message}`);
+    } else {
+        console.error("DataChannel is not open yet.");
+    }
+
+    input.value = "";
+}
+
+messageForm.addEventListener("submit", handleMessageSubmit);
+
+// Socket
 socket.on("welcome", async () => {
     myDataChannel = myPeerConnection.createDataChannel("chat");
-    myDataChannel.addEventListener("message", (event) =>
-        console.log(event.data)
-    );
-    console.log("made data channel");
+    myDataChannel.addEventListener("open", () => {
+        console.log("DataChannel is open now");
+    });
+    myDataChannel.addEventListener("message", (event) => sendMessage(`Peer: ${event.data}`));
+    console.log("DataChannel created");
+
     const offer = await myPeerConnection.createOffer();
     myPeerConnection.setLocalDescription(offer);
     console.log("sent the offer");
+
     socket.emit("offer", offer, roomName);
 });
 
 socket.on("offer", async (offer) => {
     myPeerConnection.addEventListener("datachannel", (event) => {
         myDataChannel = event.channel;
-        myDataChannel.addEventListener("message", (event) =>
-            console.log(event.data)
-        );
+        myDataChannel.addEventListener("open", () => {
+            console.log("DataChannel is open now");
+        });
+        myDataChannel.addEventListener("message", (event) => sendMessage(`Peer: ${event.data}`));
     });
-    console.log("received the offer");
+
+    console.log("Received the offer");
     myPeerConnection.setRemoteDescription(offer);
+
     const answer = await myPeerConnection.createAnswer();
     myPeerConnection.setLocalDescription(answer);
+    
     socket.emit("answer", answer, roomName);
-    console.log("sent the answer");
+    console.log("Sent the answer");
 });
 
 socket.on("answer", (answer) => {
@@ -175,7 +211,6 @@ socket.on("ice", (ice) => {
 });
 
 // RTC
-
 function makeConnection() {
     myPeerConnection = new RTCPeerConnection({
         iceServers: [
@@ -192,10 +227,19 @@ function makeConnection() {
     });
 
     myPeerConnection.addEventListener("icecandidate", handleIce);
-    myPeerConnection.addEventListener("addstream", handleAddStream);
+    // addStream -> track
+    // myPeerConnection.addEventListener("addstream", handleAddStream);
+    myPeerConnection.addEventListener("track", handleTrack);
+
     myStream
         .getTracks()
         .forEach((track) => myPeerConnection.addTrack(track, myStream));
+}
+
+function handleTrack(event) {
+    console.log("Received remote stream");
+    const peerFace = document.getElementById("peerFace");
+    peerFace.srcObject = event.streams[0];
 }
 
 function handleIce(data) {
