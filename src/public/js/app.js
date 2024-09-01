@@ -1,4 +1,3 @@
-// frontend
 // app.js
 
 const socket = io();
@@ -114,8 +113,13 @@ async function initCall() {
     welcome.hidden = true;
     call.hidden = false;
     chat.hidden = false;
-    await getMedia();
-    makeConnection();
+
+    try {
+        await getMedia();
+        makeConnection();
+    } catch (error) {
+        console.error("Failed to initialize media or connection", error);
+    }
 }
 
 async function handleWelcomeSubmit(event) {
@@ -124,8 +128,12 @@ async function handleWelcomeSubmit(event) {
     roomName = input.value;
     input.value = "";
 
-    await initCall();
-    socket.emit("join_room", roomName);
+    try {
+        await initCall();
+        socket.emit("join_room", roomName);
+    } catch (error) {
+        console.error("Error joining room:", error);
+    }
 }
 
 welcomeForm.addEventListener("submit", handleWelcomeSubmit);
@@ -160,16 +168,13 @@ function handleMessageSubmit(event) {
     const message = input.value.trim();
 
     if (!message) {
-        return; // 빈 메시지는 전송하지 않음
+        return;
     }
 
-    // 자신이 보낸 메시지를 클라이언트 화면에 표시
     sendMessage(message, nickname);
+    socket.emit("message", { text: message, sender: nickname, room: roomName });
 
-    // 서버로 메시지 전송
-    socket.emit("message", { text: message, sender: nickname, room: roomName }); // Include roomName
-
-    input.value = ""; // 입력 필드 비우기
+    input.value = "";
 }
 
 function setupDataChannelListeners() {
@@ -188,6 +193,23 @@ function setupDataChannelListeners() {
         canSendMessage = false;
     });
 }
+
+async function handleWelcomeSubmit(event) {
+    event.preventDefault();
+    const input = welcomeForm.querySelector("input");
+    roomName = input.value;
+    input.value = "";
+
+    await initCall();
+    socket.emit("join_room", roomName);
+}
+
+socket.on("room_full", () => {
+    alert("The room is full. Please try another room.");
+    welcome.hidden = false;
+    call.hidden = true;
+    chat.hidden = true;
+});
 
 socket.on("welcome", async () => {
     if (!myDataChannel || myDataChannel.readyState !== "open") {
@@ -229,13 +251,11 @@ socket.on("ice", (ice) => {
     myPeerConnection.addIceCandidate(ice);
 });
 
-// 서버로부터 메시지를 수신할 때
 socket.on("message", (data) => {
-    // 자신이 보낸 메시지는 다시 화면에 표시하지 않음
     if (data.sender === nickname) {
-        return; // 중복 표시 방지
+        return;
     }
-    sendMessage(data.text, data.sender); // 수신한 메시지 화면에 표시
+    sendMessage(data.text, data.sender);
 });
 
 function makeConnection() {

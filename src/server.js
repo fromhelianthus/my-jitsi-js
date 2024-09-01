@@ -1,4 +1,3 @@
-// backend
 // server.js
 
 import http from "http";
@@ -18,24 +17,32 @@ const wsServer = SocketIO(httpServer);
 
 wsServer.on("connection", (socket) => {
     socket.on("join_room", (roomName) => {
-        socket.join(roomName);
-        socket.room = roomName;
-        socket.to(roomName).emit("new_user_joined", socket.id); 
+        const room = wsServer.sockets.adapter.rooms.get(roomName);
+        const roomSize = room ? room.size : 0;
+
+        if (roomSize >= 2) {
+            socket.emit("room_full");
+        } else {
+            socket.join(roomName);
+            socket.room = roomName;
+            socket.to(roomName).emit("new_user_joined", socket.id);
+        }
     });
 
     socket.on("welcome", async () => {
         const roomName = socket.room;
-        socket.to(roomName).emit("welcome", socket.id); 
+        socket.to(roomName).emit("welcome", socket.id);
     });
 
     socket.on("nickname_change", (nickname) => {
         socket.nickname = nickname;
-        socket.to(socket.room).emit("nickname_update", `${nickname} has changed their nickname`);
+        socket
+            .to(socket.room)
+            .emit("nickname_update", `${nickname} has changed their nickname`);
     });
 
     socket.on("message", (data) => {
-        // data.room is included in the emitted message from the client
-        socket.to(data.room).emit("message", data); // Send message to the room
+        socket.to(data.room).emit("message", data);
     });
 
     socket.on("offer", (offer, roomName) => {
