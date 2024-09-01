@@ -28,7 +28,9 @@ let canSendMessage = false;
 async function getCameras() {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter((device) => device.kind === "videoinput");
+        const cameras = devices.filter(
+            (device) => device.kind === "videoinput"
+        );
         const currentCamera = myStream.getVideoTracks()[0];
 
         cameras.forEach((camera) => {
@@ -74,13 +76,17 @@ async function getMedia(deviceId) {
 }
 
 function handleMuteClick() {
-    myStream.getAudioTracks().forEach((track) => (track.enabled = !track.enabled));
+    myStream
+        .getAudioTracks()
+        .forEach((track) => (track.enabled = !track.enabled));
     muted = !muted;
     muteBtn.innerText = muted ? "Unmute" : "Mute";
 }
 
 function handleCameraClick() {
-    myStream.getVideoTracks().forEach((track) => (track.enabled = !track.enabled));
+    myStream
+        .getVideoTracks()
+        .forEach((track) => (track.enabled = !track.enabled));
     cameraOff = !cameraOff;
     cameraBtn.innerText = cameraOff ? "Camera On" : "Camera Off";
 }
@@ -90,7 +96,9 @@ async function handleCameraChange() {
 
     if (myPeerConnection) {
         const videoTrack = myStream.getVideoTracks()[0];
-        const videoSender = myPeerConnection.getSenders().find((sender) => sender.track.kind === "video");
+        const videoSender = myPeerConnection
+            .getSenders()
+            .find((sender) => sender.track.kind === "video");
         videoSender.replaceTrack(videoTrack);
     }
 }
@@ -114,10 +122,10 @@ async function handleWelcomeSubmit(event) {
     event.preventDefault();
     const input = welcomeForm.querySelector("input");
     roomName = input.value;
-    input.value = ""; 
+    input.value = "";
 
-    await initCall(); 
-    socket.emit("join_room", roomName); 
+    await initCall();
+    socket.emit("join_room", roomName);
 }
 
 welcomeForm.addEventListener("submit", handleWelcomeSubmit);
@@ -129,15 +137,18 @@ nicknameSubmitBtn.addEventListener("click", (event) => {
     event.preventDefault();
     const newNickname = nicknameInput.value.trim();
     if (newNickname) {
-        nickname = newNickname; 
-        socket.emit("nickname_change", nickname); 
-        nicknameInput.value = ""; 
+        nickname = newNickname;
+        socket.emit("nickname_change", nickname);
+        nicknameInput.value = "";
     }
 });
 
 function sendMessage(message, sender) {
     const li = document.createElement("li");
-    li.innerText = sender === nickname ? `${nickname} (You): ${message}` : `${sender}: ${message}`;
+    li.innerText =
+        sender === nickname
+            ? `${nickname} (You): ${message}`
+            : `${sender}: ${message}`;
     messages.appendChild(li);
 }
 
@@ -181,23 +192,23 @@ function setupDataChannelListeners() {
 socket.on("welcome", async () => {
     if (!myDataChannel || myDataChannel.readyState !== "open") {
         myDataChannel = myPeerConnection.createDataChannel("chat");
-        setupDataChannelListeners(); 
+        setupDataChannelListeners();
         console.log("DataChannel created");
     }
 
     const offer = await myPeerConnection.createOffer();
-    await myPeerConnection.setLocalDescription(offer); 
-    socket.emit("offer", offer, roomName); 
+    await myPeerConnection.setLocalDescription(offer);
+    socket.emit("offer", offer, roomName);
 });
 
 socket.on("new_user_joined", async (userId) => {
     console.log(`${userId} has joined the room.`);
     const offer = await myPeerConnection.createOffer();
     await myPeerConnection.setLocalDescription(offer);
-    socket.emit("offer", offer, roomName); 
+    socket.emit("offer", offer, roomName);
 });
 
-socket.on("nickname_update", (newNickname) => {  
+socket.on("nickname_update", (newNickname) => {
     sendMessage(`${newNickname} has changed their nickname`, "System");
 });
 
