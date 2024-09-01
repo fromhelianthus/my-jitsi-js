@@ -20,16 +20,22 @@ wsServer.on("connection", (socket) => {
     socket.on("join_room", (roomName) => {
         socket.join(roomName);
         socket.room = roomName;
-        socket.to(roomName).emit("welcome");
+        socket.to(roomName).emit("new_user_joined", socket.id); 
+    });
+
+    socket.on("welcome", async () => {
+        const roomName = socket.room;
+        socket.to(roomName).emit("welcome", socket.id); 
     });
 
     socket.on("nickname_change", (nickname) => {
         socket.nickname = nickname;
-        // socket.to(socket.room).emit("nickname_update", `${nickname} has changed their nickname`);
+        socket.to(socket.room).emit("nickname_update", `${nickname} has changed their nickname`);
     });
 
-    socket.on("message", (message) => {
-        socket.to(socket.room).emit("message", message, socket.nickname);
+    socket.on("message", (data) => {
+        // data.room is included in the emitted message from the client
+        socket.to(data.room).emit("message", data); // Send message to the room
     });
 
     socket.on("offer", (offer, roomName) => {
