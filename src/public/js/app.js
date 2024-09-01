@@ -22,6 +22,7 @@ let cameraOff = false;
 let roomName;
 let myPeerConnection;
 let myDataChannel;
+let nickname = "anon";  // default nickname
 
 async function getCameras() {
     try {
@@ -93,10 +94,10 @@ function handleCameraClick() {
         .forEach((track) => (track.enabled = !track.enabled));
 
     if (cameraOff) {
-        cameraBtn.innerText = "Turn Camera Off";
+        cameraBtn.innerText = "Camera Off";
         cameraOff = false;
     } else {
-        cameraBtn.innerText = "Turn Camera On";
+        cameraBtn.innerText = "Camera On";
         cameraOff = true;
     }
 }
@@ -131,39 +132,67 @@ async function initCall() {
 }
 
 async function handleWelcomeSubmit(event) {
-    event.preventDefault();
+    event.preventDefault(); // 기본 제출 동작 방지
     const input = welcomeForm.querySelector("input");
-    await initCall();
-    socket.emit("join_room", input.value);
     roomName = input.value;
-    input.value = "";
+    input.value = ""; // 입력 필드 비우기
+
+    await initCall(); // 초기화 및 통화 시작
+    socket.emit("join_room", roomName); // 방 참가 이벤트 전송
 }
 
 welcomeForm.addEventListener("submit", handleWelcomeSubmit);
 
-function sendMessage(message) {
+const nicknameInput = document.getElementById("nicknameInput");
+const nicknameSubmitBtn = document.getElementById("nicknameSubmit");
+
+nicknameSubmitBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    const newNickname = nicknameInput.value.trim();
+    if (newNickname) {
+        nickname = newNickname; // 새로운 닉네임으로 업데이트
+        socket.emit("nickname_change", nickname); // 서버에 닉네임 변경 이벤트 전송
+        nicknameInput.value = ""; // 입력 필드 비우기
+    }
+});
+
+function sendMessage(message, sender) {
     const li = document.createElement("li");
-    li.innerText = message;
+
+    li.innerText = sender === nickname ? `${nickname} (You): ${message}` : `${sender}: ${message}`;
     messages.appendChild(li);
 }
+
+messageForm.addEventListener("submit", handleMessageSubmit);
 
 function handleMessageSubmit(event) {
     event.preventDefault();
     const input = messageForm.querySelector("input");
     const message = input.value;
 
-    // bug?
+    if (message.trim() === "") {
+        return;
+    }
+
     if (myDataChannel && myDataChannel.readyState === "open") {
-        myDataChannel.send(message);
-        sendMessage(`You: ${message}`);
+        const chatMessage = JSON.stringify({ text: message, sender: nickname });
+        myDataChannel.send(chatMessage);
+        sendMessage(message, nickname);
     } else {
         console.error("DataChannel is not open yet.");
     }
 
+    socket.emit("message", message);
+
     input.value = "";
 }
 
-messageForm.addEventListener("submit", handleMessageSubmit);
+function setupDataChannelListeners() {
+    myDataChannel.addEventListener("message", (event) => {
+        const { text, sender } = JSON.parse(event.data);
+        sendMessage(text, sender);
+    });
+}
 
 // Socket
 socket.on("welcome", async () => {
@@ -171,7 +200,9 @@ socket.on("welcome", async () => {
     myDataChannel.addEventListener("open", () => {
         console.log("DataChannel is open now");
     });
-    myDataChannel.addEventListener("message", (event) => sendMessage(`Peer: ${event.data}`));
+
+    setupDataChannelListeners(); // 데이터 채널 리스너 설정
+
     console.log("DataChannel created");
 
     const offer = await myPeerConnection.createOffer();
@@ -181,13 +212,18 @@ socket.on("welcome", async () => {
     socket.emit("offer", offer, roomName);
 });
 
+socket.on("nickname_update", (newNickname) => {  
+    sendMessage(`${newNickname} has changed their nickname`, "System");
+});
+
 socket.on("offer", async (offer) => {
     myPeerConnection.addEventListener("datachannel", (event) => {
         myDataChannel = event.channel;
         myDataChannel.addEventListener("open", () => {
             console.log("DataChannel is open now");
         });
-        myDataChannel.addEventListener("message", (event) => sendMessage(`Peer: ${event.data}`));
+
+        setupDataChannelListeners(); // 데이터 채널 리스너 설정
     });
 
     console.log("Received the offer");
@@ -208,6 +244,10 @@ socket.on("answer", (answer) => {
 socket.on("ice", (ice) => {
     console.log("received candidate");
     myPeerConnection.addIceCandidate(ice);
+});
+
+socket.on("message", (message, sender) => {
+    sendMessage(message, sender);
 });
 
 // RTC

@@ -19,7 +19,17 @@ const wsServer = SocketIO(httpServer);
 wsServer.on("connection", (socket) => {
     socket.on("join_room", (roomName) => {
         socket.join(roomName);
+        socket.room = roomName;
         socket.to(roomName).emit("welcome");
+    });
+
+    socket.on("nickname_change", (nickname) => {
+        socket.nickname = nickname;
+        // socket.to(socket.room).emit("nickname_update", `${nickname} has changed their nickname`);
+    });
+
+    socket.on("message", (message) => {
+        socket.to(socket.room).emit("message", message, socket.nickname);
     });
 
     socket.on("offer", (offer, roomName) => {
